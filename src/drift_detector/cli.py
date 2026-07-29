@@ -1,4 +1,4 @@
-"""CLI: command-line interface for agent-drift-detector."""
+"""CLI: command-line interface for Canary — agent drift detection."""
 
 import json
 import time
@@ -11,12 +11,12 @@ from drift_detector.adapters.jsonl_adapter import JSONLAdapter
 
 @click.group()
 def main():
-    """agent-drift-detector: detect reasoning drift in AI agents."""
+    """🐤 Canary — detect reasoning drift in AI agents before they go silent."""
 
 
 @main.command()
-@click.option("--baseline-file", required=True, help="Path to baseline JSONL traces")
-@click.option("--save-to", default=".drift_baseline.json", help="Where to save the baseline")
+@click.option("--baseline-file", required=True, help="Path to baseline JSONL traces (known-good period)")
+@click.option("--save-to", default=".canary_baseline.pkl", help="Where to save the baseline")
 def baseline(baseline_file, save_to):
     """Capture a baseline from a known-good period."""
     adapter = JSONLAdapter(baseline_file)
@@ -47,7 +47,7 @@ def baseline(baseline_file, save_to):
 
 @main.command()
 @click.option("--trace-file", required=True, help="Path to current JSONL traces to check")
-@click.option("--baseline-file", default=".drift_baseline.json", help="Path to saved baseline")
+@click.option("--baseline-file", default=".canary_baseline.pkl", help="Path to saved baseline")
 @click.option("--output", default="-", help="Output file for report (default: stdout)")
 @click.option("--threshold-embedding", default=0.15, type=float)
 @click.option("--threshold-tool-usage", default=0.3, type=float)
@@ -120,7 +120,7 @@ def serve(port):
     from prometheus_client import start_http_server
 
     start_http_server(port)
-    click.echo(f"📊 Prometheus metrics available at http://0.0.0.0:{port}")
+    click.echo(f"🐤 Canary metrics available at http://0.0.0.0:{port}")
     click.echo(f"   Endpoint: http://0.0.0.0:{port}/metrics")
     click.echo("   Press Ctrl+C to stop.")
 

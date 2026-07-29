@@ -3,9 +3,9 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-drift-detector"
+name = "canary-drift"
 version = "0.1.0"
-description = "Detect reasoning drift in AI agents — open source, framework-agnostic, integrable with any observability tool"
+description = "Detect reasoning drift in AI agents — like a canary in the coal mine, before your agents go silent"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -33,7 +33,7 @@ tracepath = []
 dev = ["pytest>=8.0", "pytest-cov>=5.0"]
 
 [project.scripts]
-drift-detector = "drift_detector.cli:main"
+canary = "drift_detector.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

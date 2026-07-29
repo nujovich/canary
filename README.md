@@ -1,45 +1,44 @@
-# 🧠 Agent Drift Detector
+# 🐤 Canary — Drift detection for AI agents
 
-**Detect reasoning drift in AI agents** — open source, framework-agnostic, integrable with any observability tool.
+**Like a canary in the coal mine.** Before your agents go silent, Canary tells you something changed.
 
-## ¿Qué hace?
+Framework-agnostic. Plugs into LangFuse, Tracepath, or any JSONL trace export. 4 detection methods. Prometheus + Grafana ready.
 
-Los agentes AI se degradan silenciosamente. Cambian cómo razonan, qué herramientas usan, qué caminos toman. No es un error de código — es **drift**. Y tus herramientas de observabilidad actuales no lo ven.
+## ¿Qué detecta?
 
-Agent Drift Detector compara el comportamiento actual de tus agentes contra una baseline "saludable" usando 4 métodos:
+Los agentes AI no fallan de golpe — se degradan. Cambian cómo razonan, qué herramientas usan, qué caminos toman. Canary lo detecta antes del incidente.
 
 | Método | Qué detecta | Técnica |
 |---|---|---|
-| **Embedding Drift** | Desviación semántica en el razonamiento | Cosine similarity vs baseline embeddings |
-| **Tool Usage Drift** | Cambios en qué herramientas usa el agente | KL divergence en distribución de tool calls |
-| **Decision Path Drift** | Rutas de decisión diferentes | Índice de Jaccard en secuencias de acciones |
-| **LLM Judge** | Degradación en calidad de razonamiento | Cualquier LLM evalúa coherencia (OpenAI, Anthropic, Gemini, Ollama local) |
+| **Embedding Drift** | Desviación semántica en el razonamiento | Cosine similarity vs baseline |
+| **Tool Usage Drift** | Cambios en qué herramientas usa el agente | KL divergence |
+| **Decision Path Drift** | Rutas de decisión diferentes | Índice de Jaccard |
+| **LLM Judge** | Degradación en calidad de razonamiento | Cualquier LLM (OpenAI, Anthropic, Gemini, Ollama) |
 
 ## Instalación
 
 ```bash
-pip install agent-drift-detector
+pip install canary-drift
 # o desde el repo:
-git clone https://github.com/mermelada-tech/agent-drift-detector
-cd agent-drift-detector
+git clone https://github.com/mermelada-tech/canary
+cd canary
 pip install -e .
 ```
 
 ## Uso rápido
 
-### 1. Capturar baseline (semana "normal")
-
 ```bash
-drift-detector baseline --baseline-file traces_week1.jsonl
+# 1. Capturar baseline (semana "normal")
+canary baseline --baseline-file semana_1.jsonl
+
+# 2. Revisar drift
+canary check --trace-file semana_2.jsonl
+
+# 3. Métricas para Grafana
+canary serve --port 9090
 ```
 
-### 2. Revisar drift contra baseline
-
-```bash
-drift-detector check --trace-file traces_week2.jsonl
-```
-
-Output:
+Output de `check`:
 ```json
 {
   "embedding_drift": {"score": 0.08, "drifted": false},
@@ -50,59 +49,58 @@ Output:
 }
 ```
 
-### 3. Exponer métricas para Grafana
-
-```bash
-drift-detector serve --port 9090
-```
-
-Importá `dashboards/grafana-drift-dashboard.json` en Grafana.
-
 ## Formato de datos
 
-Espera JSONL con un objeto por step:
+JSONL, un objeto por step:
 
 ```jsonl
 {"run_id": "1", "step": 1, "reasoning": "Checking user balance...", "tool_name": "get_balance"}
-{"run_id": "1", "step": 2, "reasoning": "Balance sufficient. Proceeding to transfer.", "tool_name": "transfer"}
-{"run_id": "2", "step": 1, "reasoning": "Fetching customer profile...", "tool_name": "get_customer"}
+{"run_id": "1", "step": 2, "reasoning": "Balance sufficient.", "tool_name": "transfer"}
 ```
 
-Campos detectados automáticamente: `reasoning`, `output`, `content`, `text` (razonamiento) y `tool_name`, `tool`, `name`, `action` (herramienta).
+Auto-detecta los campos: `reasoning`, `output`, `content`, `text` (razonamiento) y `tool_name`, `tool`, `name`, `action` (herramienta).
 
-## Integración con otras herramientas
-
-### LangFuse
+## Integraciones
 
 ```python
+# LangFuse
 from drift_detector.adapters.langfuse_adapter import LangFuseAdapter
-
-adapter = LangFuseAdapter(
-    public_key=os.environ["LANGFUSE_PUBLIC_KEY"],
-    secret_key=os.environ["LANGFUSE_SECRET_KEY"],
-)
+adapter = LangFuseAdapter(public_key="...", secret_key="...")
 data = adapter.fetch_traces(limit=200, hours_back=168)
-```
 
-### Tracepath
-
-```python
+# Tracepath (receipts firmados)
 from drift_detector.adapters.tracepath_adapter import TracepathAdapter
-
 adapter = TracepathAdapter("/var/tracepath/receipts")
 data = adapter.load()
-# data["reasoning_texts"], data["tool_counts"], data["decision_paths"]
+
+# Cualquier tool que exporte JSONL
+canary baseline --baseline-file mis_traces.jsonl
+canary check --trace-file mis_traces.jsonl
 ```
 
-### Cualquier tool via JSONL
+## LLM Judge — provider-agnostic
+
+Auto-detection por variables de entorno:
+```bash
+export OPENAI_API_KEY="..."    # → OpenAI
+export ANTHROPIC_API_KEY="..." # → Anthropic
+export GEMINI_API_KEY="..."    # → Gemini (gratis)
+export OLLAMA_HOST="..."       # → Ollama local
+```
+
+O explícito en código:
+```python
+from drift_detector.core.llm_judge import LLMJudge
+judge = LLMJudge(provider="ollama", model="llama3.2")
+```
+
+## Métricas Prometheus + Dashboard Grafana
 
 ```bash
-# Exportá tus traces a JSONL y usá el adapter genérico:
-drift-detector baseline --baseline-file mis_traces.jsonl
-drift-detector check --trace-file mis_traces_semana_2.jsonl
+canary serve --port 9090
 ```
 
-## Métricas de Prometheus
+Importá `dashboards/grafana-drift-dashboard.json` en Grafana: status de drift, gauges por detector, LLM Judge score, auto-refresh 30s.
 
 | Métrica | Descripción |
 |---|---|
@@ -110,40 +108,13 @@ drift-detector check --trace-file mis_traces_semana_2.jsonl
 | `agent_drift_tool_usage_score` | Tool usage KL divergence (0-1) |
 | `agent_drift_decision_path_score` | Decision path drift (0-1) |
 | `agent_drift_llm_judge_score` | LLM judge quality (1-5) |
-| `agent_drift_any_drifted` | 1 if any detector triggered |
+| `agent_drift_any_drifted` | 1 si algún detector disparó |
 
-## Dashboard de Grafana
+## ¿Por qué Canary?
 
-Importá `dashboards/grafana-drift-dashboard.json` en tu Grafana. Incluye:
+Hay tracing (LangFuse, LangSmith). Hay anomaly detection para seguridad (ARMO). Hay drift para ML clásico (Arize). Pero **nadie te dice si tu agente está razonando peor que la semana pasada.** Hasta ahora.
 
-- 🟢🔴 Status de drift general
-- Gauges para cada detector con thresholds configurables
-- LLM Judge score
-- Auto-refresh cada 30s
-
-![Grafana Dashboard](dashboards/dashboard-preview.png)
-
-## ¿Por qué esto no existe?
-
-Hay tracing (LangFuse, LangSmith). Hay anomaly detection para seguridad (ARMO). Hay drift para ML clásico (Arize, Evidently). Pero **nadie te dice si tu agente está razonando peor que la semana pasada**. Hasta ahora.
-
-## Stack
-
-- **Python 3.10+**
-- **sentence-transformers** — embeddings para semantic drift
-- **scipy** — KL divergence para tool usage drift
-- **prometheus-client** — métricas para Grafana
-- **click** — CLI
-- **Cualquier LLM** — OpenAI GPT-4o-mini, Anthropic Claude Haiku, Gemini Flash (gratis), Ollama local, o cualquier endpoint OpenAI-compatible
-
-## Contribuir
-
-```bash
-git clone https://github.com/mermelada-tech/agent-drift-detector
-cd agent-drift-detector
-pip install -e ".[dev]"
-pytest
-```
+Como el canario en la mina de carbón: cuando el canario cae, sabés que hay gas. Cuando Canary detecta drift, sabés que tu agente se está degradando.
 
 ## Licencia
 
