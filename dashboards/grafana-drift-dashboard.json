@@ -1,0 +1,132 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {"type": "value", "value": 0, "text": "No Drift"},
+            {"type": "value", "value": 1, "text": "DRIFT"}
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 1}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "background", "graphMode": "area", "orientation": "auto"},
+      "targets": [{"expr": "agent_drift_any_drifted", "refId": "A"}],
+      "title": "Drift Status",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "max": 1, "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.15},
+              {"color": "red", "value": 0.3}
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {"h": 10, "w": 8, "x": 8, "y": 0},
+      "id": 2,
+      "options": {"orientation": "horizontal", "showThresholdLabels": true},
+      "targets": [{"expr": "agent_drift_embedding_score", "refId": "A"}],
+      "title": "Embedding Drift",
+      "type": "gauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "max": 1, "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.3},
+              {"color": "red", "value": 0.6}
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {"h": 10, "w": 8, "x": 16, "y": 0},
+      "id": 3,
+      "options": {"orientation": "horizontal", "showThresholdLabels": true},
+      "targets": [{"expr": "agent_drift_tool_usage_score", "refId": "A"}],
+      "title": "Tool Usage Drift",
+      "type": "gauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "max": 5, "min": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 3},
+              {"color": "green", "value": 4}
+            ]
+          }
+        }
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 6},
+      "id": 4,
+      "options": {"colorMode": "value", "graphMode": "area", "orientation": "auto"},
+      "targets": [{"expr": "agent_drift_llm_judge_score", "refId": "A"}],
+      "title": "LLM Judge Score (1-5)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "max": 1, "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.25},
+              {"color": "red", "value": 0.5}
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 6},
+      "id": 5,
+      "options": {"orientation": "horizontal", "showThresholdLabels": true},
+      "targets": [{"expr": "agent_drift_decision_path_score", "refId": "A"}],
+      "title": "Decision Path Drift",
+      "type": "gauge"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["ai-agents", "drift-detection"],
+  "time": {"from": "now-24h", "to": "now"},
+  "title": "Agent Drift Detection",
+  "uid": "agent-drift-detection",
+  "version": 1
+}
