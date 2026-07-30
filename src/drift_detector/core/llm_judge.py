@@ -37,6 +37,7 @@ Respond ONLY with JSON: {{"coherence": N, "goal_adherence": N, "completeness": N
     def __init__(
         self,
         sample_rate: float = 0.05,
+        min_samples: int = 5,
         alert_threshold: float = 3.0,
         provider: Optional[str] = None,
         api_key: Optional[str] = None,
@@ -44,6 +45,7 @@ Respond ONLY with JSON: {{"coherence": N, "goal_adherence": N, "completeness": N
         base_url: Optional[str] = None,
     ):
         self.sample_rate = sample_rate
+        self.min_samples = min_samples
         self.alert_threshold = alert_threshold
         self.provider = provider or self._detect_provider()
         self.api_key = api_key
@@ -182,7 +184,10 @@ Respond ONLY with JSON: {{"coherence": N, "goal_adherence": N, "completeness": N
         """Rate a batch. Returns aggregated scores + individual ratings."""
         import random
 
-        sample_size = max(1, int(len(reasoning_texts) * self.sample_rate))
+        sample_size = min(
+            len(reasoning_texts),
+            max(self.min_samples, int(len(reasoning_texts) * self.sample_rate))
+        )
         sampled = random.sample(reasoning_texts, min(sample_size, len(reasoning_texts)))
 
         scores = []
