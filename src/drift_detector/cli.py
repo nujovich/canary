@@ -34,7 +34,7 @@ def baseline(baseline_file, save_to):
     baseline_data = {
         "embedding_baseline": runner.embedding.baseline_embeddings.tolist() if runner.embedding.baseline_embeddings is not None else None,
         "tool_usage_baseline": runner.tool_usage.baseline_dist,
-        "decision_path_baseline": dict(runner.decision_path.baseline_paths) if runner.decision_path.baseline_paths else None,
+        "decision_path_baseline": {"|||".join(k): v for k, v in runner.decision_path.baseline_paths.items()} if runner.decision_path.baseline_paths else None,
         "total_traces": data["total_traces"],
         "total_runs": data["total_runs"],
     }
@@ -79,8 +79,12 @@ def check(trace_file, baseline_file, output, threshold_embedding, threshold_tool
     if saved.get("decision_path_baseline"):
         from collections import Counter
         baseline_paths = Counter()
-        for path_str, count in saved["decision_path_baseline"].items():
-            baseline_paths[tuple(path_str.split("|||"))] = count
+        for path_key, count in saved["decision_path_baseline"].items():
+            if isinstance(path_key, str):
+                baseline_paths[tuple(path_key.split("|||"))] = count
+            else:
+                # Already a tuple (pickled directly from Counter)
+                baseline_paths[path_key] = count
         runner.decision_path.baseline_paths = baseline_paths
 
     # Run detection

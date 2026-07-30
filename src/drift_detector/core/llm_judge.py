@@ -106,7 +106,7 @@ Respond ONLY with JSON: {{"coherence": N, "goal_adherence": N, "completeness": N
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0,
-            "max_tokens": 200,
+            "max_tokens": 1000,
         }).encode()
 
         req = urllib.request.Request(
@@ -119,7 +119,12 @@ Respond ONLY with JSON: {{"coherence": N, "goal_adherence": N, "completeness": N
         )
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read())
-            text = data["choices"][0]["message"]["content"]
+            msg = data["choices"][0]["message"]
+            text = msg.get("content")
+            if text is None and msg.get("reasoning"):
+                # Reasoning model: content was empty but reasoning has the
+                # answer.  Skim the last paragraph for a JSON blob.
+                text = msg["reasoning"]
             return self._parse_json(text)
 
     def _call_anthropic(self, prompt: str) -> dict:
