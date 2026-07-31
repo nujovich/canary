@@ -116,6 +116,71 @@ Tracing exists. Anomaly detection for security exists. ML model drift detection 
 
 Like the canary in the coal mine: when the bird stops singing, you know there's gas. When Canary flags drift, you know your agents are degrading — before your users do.
 
+## Roadmap
+
+Canary is being built in the open to become the go-to drift detection tool for AI agent teams. Each milestone delivers a single, concrete capability that teams can adopt immediately.
+
+### v0.2 — CI/CD & Native Integrations 🚧
+
+**Goal:** One `uses:` line in a GitHub Actions workflow and Canary runs drift checks on every deploy.
+
+| Deliverable | What it unlocks |
+|---|---|
+| **GitHub Action** (`nujovich/canary@v1`) | `fail-on: degradation_drift` blocks merges when agent quality degrades |
+| **Baseline as JSON** (no pickle) | Version-controlled baselines in git — compare against the previous release, not "N weeks ago" |
+| **Hermes Telemetry adapter** | Read directly from `telemetry.db` — no manual JSONL export for Hermes users |
+| PR comment report | Drift table posted as a review comment on the PR that triggered the check |
+
+```yaml
+# .github/workflows/canary.yml
+- uses: nujovich/canary@v1
+  with:
+    source: hermes-telemetry
+    jobs: BUILD,WATCH,PULSE
+    baseline-ref: ${{ github.event.before }}
+    fail-on: degradation_drift
+```
+
+### v0.3 — Native LangFuse + Human-Readable Reports
+
+**Goal:** Teams using LangFuse (the de-facto standard for agent tracing) get drift detection with zero configuration. PMs and stakeholders can read the output.
+
+| Deliverable | What it unlocks |
+|---|---|
+| **LangFuse native adapter** | `canary check --source langfuse` — no JSONL export, reads traces directly |
+| **`canary report --format md`** | Markdown table output for pasting into issues, PRs, Slack, Notion |
+| **CI summary annotation** | GitHub Actions step summary with visual drift table |
+
+### v0.4 — Self-Contained Dashboard
+
+**Goal:** Small teams get a visual drift dashboard without setting up Grafana + Prometheus.
+
+| Deliverable | What it unlocks |
+|---|---|
+| **Standalone web dashboard** | `canary serve --dashboard` — single-page HTML with drift history and per-job health |
+| **OpenTelemetry adapter** | Cover everything else: Arize, Phoenix, Datadog, any OTLP sink |
+| **Job health overview** | Green/yellow/red status per monitored agent, 30-day drift trend |
+
+### v1.0 — Multi-Team Ready
+
+**Goal:** Workspaces, team-level baselines, and alerting — the tool grows with the org.
+
+| Deliverable | What it unlocks |
+|---|---|
+| **Workspaces** | Per-team baselines, thresholds, and dashboards under one Canary instance |
+| **Slack / Discord / Telegram alerts** | Push notifications when drift is detected, not just CI failures |
+| **Baseline suggestions** | `canary baseline --auto` — picks the best window automatically |
+| **Drift explainability** | "Why did this drift?" — highlights which tool sequences or reasoning patterns changed |
+
+### Beyond v1.0
+
+- **Multi-model comparison** — compare the same task across GPT-4o, Claude, Gemini, and open-source models
+- **A/B test mode** — run two agent versions side by side and detect which one drifts less
+- **Plugin system** — community detectors (safety drift, hallucination rate, latency drift)
+- **Managed cloud** — hosted Canary for teams that don't want to self-host
+
+---
+
 ## License
 
 MIT © 2026 Mermelada Tech
