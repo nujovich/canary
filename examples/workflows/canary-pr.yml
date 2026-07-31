@@ -1,0 +1,37 @@
+# 🐤 Canary Drift Check — PR workflow
+#
+# Runs on every PR to compare agent behavior against the base branch.
+# Posts a comment with the drift report.
+# Fails if degradation drift is detected.
+#
+# Usage:
+#   1. Copy this file to .github/workflows/canary-pr.yml
+#   2. Add LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY to your repo secrets
+#   3. Optionally adjust trace-name and hours-back
+#   4. Push a PR to see Canary in action
+
+name: Canary — PR Drift Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐤 Canary Drift Check
+        uses: nujovich/canary/action@master
+        with:
+          source: langfuse
+          trace-name: BUILD          # Filter by your agent's trace name
+          hours-back: '24'           # Compare against last 24h of traces
+          baseline-ref: ${{ github.event.pull_request.base.sha }}  # Compare to base branch
+          fail-on: degradation_drift # Fail if reasoning degraded
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          langfuse-public-key: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          langfuse-secret-key: ${{ secrets.LANGFUSE_SECRET_KEY }}

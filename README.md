@@ -120,24 +120,24 @@ Like the canary in the coal mine: when the bird stops singing, you know there's 
 
 Canary is being built in the open to become the go-to drift detection tool for AI agent teams. Each milestone delivers a single, concrete capability that teams can adopt immediately.
 
-### v0.2 — CI/CD & Native Integrations 🚧
+### v0.2 — CI/CD & Native Integrations ✅
 
 **Goal:** One `uses:` line in a GitHub Actions workflow and Canary runs drift checks on every deploy.
 
 | Deliverable | What it unlocks |
 |---|---|
-| **GitHub Action** (`nujovich/canary@v1`) | `fail-on: degradation_drift` blocks merges when agent quality degrades |
+| **GitHub Action** (`nujovich/canary/action@master`) ✅ | `fail-on: degradation_drift` blocks merges when agent quality degrades |
 | **Baseline as JSON** (no pickle) | Version-controlled baselines in git — compare against the previous release, not "N weeks ago" |
-| **Hermes Telemetry adapter** | Read directly from `telemetry.db` — no manual JSONL export for Hermes users |
-| PR comment report | Drift table posted as a review comment on the PR that triggered the check |
+| **Hermes Telemetry adapter** 🚧 | Read directly from `telemetry.db` — no manual JSONL export for Hermes users |
+| PR comment report ✅ | Drift table posted as a review comment on the PR that triggered the check |
 
 ```yaml
-# .github/workflows/canary.yml
-- uses: nujovich/canary@v1
+# .github/workflows/canary-pr.yml
+- uses: nujovich/canary/action@master
   with:
-    source: hermes-telemetry
-    jobs: BUILD,WATCH,PULSE
-    baseline-ref: ${{ github.event.before }}
+    source: langfuse
+    trace-name: BUILD
+    baseline-ref: ${{ github.event.pull_request.base.sha }}
     fail-on: degradation_drift
 ```
 

@@ -1,0 +1,37 @@
+# 🐤 Canary + JSONL — Minimal setup
+#
+# For teams that export traces as JSONL files (no LangFuse needed).
+# Useful for CI pipelines where traces are generated as build artifacts.
+#
+# Usage:
+#   1. Generate baseline: canary baseline --baseline-file traces_baseline.jsonl
+#   2. Save .canary/baseline.pkl to your repo
+#   3. Push to trigger drift check on every commit
+
+name: Canary — JSONL Drift Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate agent traces (replace with your own step)
+        run: |
+          # Your agent generates traces here
+          # Example: python run_agent.py --export-traces traces.jsonl
+          echo '{"run_id":"1","step":1,"reasoning":"test","tool_name":"terminal"}' > traces.jsonl
+
+      - name: 🐤 Canary Drift Check
+        uses: nujovich/canary/action@master
+        with:
+          source: jsonl
+          trace-file: traces.jsonl
+          baseline-file: .canary/baseline.pkl
+          fail-on: degradation_drift
+          github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,173 @@
+name: Canary Drift Check
+description: Detect AI agent reasoning drift before it becomes an incident
+author: Mermelada Tech
+branding:
+  icon: activity
+  color: yellow
+
+inputs:
+  source:
+    description: Trace source (jsonl or langfuse)
+    required: false
+    default: langfuse
+
+  trace-file:
+    description: Path to JSONL trace file (source=jsonl only)
+    required: false
+
+  trace-name:
+    description: Filter by LangFuse trace name (source=langfuse only)
+    required: false
+
+  baseline-file:
+    description: Path to saved baseline .pkl or JSON file
+    required: false
+    default: .canary/baseline.pkl
+
+  baseline-ref:
+    description: Git ref to checkout for baseline (commit, tag, branch). Overrides baseline-file.
+    required: false
+
+  hours-back:
+    description: Hours back to fetch traces (LangFuse only)
+    required: false
+    default: '168'
+
+  fail-on:
+    description: "When to fail the workflow (none, any, degradation_drift)"
+    required: false
+    default: degradation_drift
+
+  langfuse-public-key:
+    description: LangFuse public key (for source=langfuse)
+    required: false
+
+  langfuse-secret-key:
+    description: LangFuse secret key (for source=langfuse)
+    required: false
+
+  langfuse-host:
+    description: LangFuse host URL (defaults to cloud.langfuse.com)
+    required: false
+
+  github-token:
+    description: GitHub token for PR comments
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  drift-detected:
+    description: Whether drift was detected (true/false)
+    value: ${{ steps.run.outputs.drift_detected }}
+
+  drift-type:
+    description: Type of drift (none, input_drift, degradation_drift)
+    value: ${{ steps.run.outputs.drift_type }}
+
+  report-json:
+    description: Full drift report as JSON
+    value: ${{ steps.run.outputs.report_json }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Canary
+      shell: bash
+      run: pip install canary-drift
+
+    - name: Restore baseline from git history
+      if: ${{ inputs.baseline-ref != '' }}
+      shell: bash
+      run: |
+        echo "→ Checking out baseline from ${{ inputs.baseline-ref }}"
+        git fetch origin ${{ inputs.baseline-ref }} --depth=1
+        git checkout ${{ inputs.baseline-ref }} -- .canary/baseline.pkl 2>/dev/null || true
+        git checkout ${{ inputs.baseline-ref }} -- .canary/baseline.json 2>/dev/null || true
+        echo "  Baseline restored"
+
+    - name: Run Canary
+      id: run
+      shell: bash
+      env:
+        LANGFUSE_PUBLIC_KEY: ${{ inputs.langfuse-public-key }}
+        LANGFUSE_SECRET_KEY: ${{ inputs.langfuse-secret-key }}
+        LANGFUSE_HOST: ${{ inputs.langfuse-host }}
+      run: |
+        # Build canary check command
+        CMD="canary check --source ${{ inputs.source }}"
+
+        if [ "${{ inputs.source }}" = "jsonl" ]; then
+          CMD="$CMD --trace-file ${{ inputs.trace-file }}"
+        else
+          CMD="$CMD --trace-name '${{ inputs.trace-name }}' --hours-back ${{ inputs.hours-back }}"
+        fi
+
+        CMD="$CMD --baseline-file ${{ inputs.baseline-file }}"
+        CMD="$CMD --output /tmp/canary_report.json"
+
+        echo "→ $CMD"
+        eval "$CMD" 2>&1 | tee /tmp/canary_output.txt
+
+        REPORT=$(cat /tmp/canary_report.json 2>/dev/null || echo '{}')
+        DRIFT_DETECTED=$(echo "$REPORT" | python3 -c "import json,sys; d=json.load(sys.stdin); print('true' if d.get('any_drifted') else 'false')" 2>/dev/null || echo "false")
+        DRIFT_TYPE=$(echo "$REPORT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('drift_type','none'))" 2>/dev/null || echo "none")
+
+        # Set outputs
+        echo "drift_detected=$DRIFT_DETECTED" >> $GITHUB_OUTPUT
+        echo "drift_type=$DRIFT_TYPE" >> $GITHUB_OUTPUT
+
+        # Escape JSON for output
+        REPORT_ESCAPED=$(echo "$REPORT" | python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))")
+        echo "report_json=$REPORT_ESCAPED" >> $GITHUB_OUTPUT
+
+        # Decide exit code
+        FAIL_ON="${{ inputs.fail-on }}"
+        if [ "$FAIL_ON" = "any" ] && [ "$DRIFT_DETECTED" = "true" ]; then
+          echo "::error::🐤 Canary detected drift: $DRIFT_TYPE"
+          exit 1
+        elif [ "$FAIL_ON" = "degradation_drift" ] && [ "$DRIFT_TYPE" = "degradation_drift" ]; then
+          echo "::error::🐤 Canary detected degradation drift — same inputs, worse reasoning"
+          exit 1
+        elif [ "$DRIFT_DETECTED" = "true" ]; then
+          echo "::warning::🐤 Canary detected drift: $DRIFT_TYPE (not failing per fail-on=$FAIL_ON)"
+        else
+          echo "✅ No drift detected"
+        fi
+
+    - name: Post PR comment
+      if: ${{ github.event_name == 'pull_request' && inputs.github-token != '' }}
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('/tmp/canary_report.json', 'utf8'));
+
+          const emoji = report.any_drifted ? '⚠️' : '✅';
+          const status = report.any_drifted ? 'DRIFT DETECTED' : 'No drift';
+          const driftType = report.drift_type || 'none';
+
+          let body = `## 🐤 Canary Drift Check\n\n`;
+          body += `**${emoji} ${status}** — \`${driftType}\`\n\n`;
+          body += `| Detector | Score | Threshold | Drift? |\n`;
+          body += `|---|---|---|---|\n`;
+          body += `| Goal | ${report.goal_drift.score.toFixed(2)} | 0.30 | ${report.goal_drift.drifted ? '⚠️' : '✅'} |\n`;
+          body += `| Embedding | ${report.embedding_drift.score.toFixed(2)} | 0.15 | ${report.embedding_drift.drifted ? '⚠️' : '✅'} |\n`;
+          body += `| Tool Usage | ${report.tool_usage_drift.score.toFixed(2)} | 0.30 | ${report.tool_usage_drift.drifted ? '⚠️' : '✅'} |\n`;
+          body += `| Decision Path | ${report.decision_path_drift.score.toFixed(2)} | 0.25 | ${report.decision_path_drift.drifted ? '⚠️' : '✅'} |\n`;
+          if (report.llm_judge.score != null) {
+            body += `| LLM Judge | ${report.llm_judge.score.toFixed(2)}/5 | 3.00 | ${report.llm_judge.alert ? '🔴' : '✅'} |\n`;
+          }
+          body += `\n<sub>🐤 [Canary](https://github.com/nujovich/canary) — catch drift before your users do</sub>`;
+
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body,
+          });
