@@ -141,15 +141,21 @@ Canary is being built in the open to become the go-to drift detection tool for A
     fail-on: degradation_drift
 ```
 
-### v0.3 — Native LangFuse + Human-Readable Reports
+### v0.3 — Native LangFuse + Human-Readable Reports ✅ (LangFuse shipped early)
 
 **Goal:** Teams using LangFuse (the de-facto standard for agent tracing) get drift detection with zero configuration. PMs and stakeholders can read the output.
 
 | Deliverable | What it unlocks |
 |---|---|
-| **LangFuse native adapter** | `canary check --source langfuse` — no JSONL export, reads traces directly |
+| **LangFuse native adapter** ✅ | `canary check --source langfuse` — no JSONL export, reads traces directly |
 | **`canary report --format md`** | Markdown table output for pasting into issues, PRs, Slack, Notion |
 | **CI summary annotation** | GitHub Actions step summary with visual drift table |
+
+```bash
+# Tracepath → LangFuse → Canary pipeline
+canary baseline --source langfuse --trace-name BUILD
+canary check --source langfuse --trace-name BUILD --hours-back 24
+```
 
 ### v0.4 — Self-Contained Dashboard
 
