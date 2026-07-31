@@ -124,12 +124,12 @@ Canary is being built in the open to become the go-to drift detection tool for A
 
 **Goal:** One `uses:` line in a GitHub Actions workflow and Canary runs drift checks on every deploy.
 
-| Deliverable | What it unlocks |
+| Deliverable | Status |
 |---|---|
-| **GitHub Action** (`nujovich/canary/action@master`) ✅ | `fail-on: degradation_drift` blocks merges when agent quality degrades |
-| **Baseline as JSON** (no pickle) | Version-controlled baselines in git — compare against the previous release, not "N weeks ago" |
-| **Hermes Telemetry adapter** 🚧 | Read directly from `telemetry.db` — no manual JSONL export for Hermes users |
-| PR comment report ✅ | Drift table posted as a review comment on the PR that triggered the check |
+| **GitHub Action** (`nujovich/canary/action@master`) | ✅ Shipped |
+| PR comment report with drift table | ✅ Shipped |
+| **Hermes Telemetry adapter** — read directly from `telemetry.db` | 🚧 In progress |
+| **Baseline as JSON** (no pickle) — version-controlled baselines in git | 🔜 Next |
 
 ```yaml
 # .github/workflows/canary-pr.yml
@@ -141,21 +141,31 @@ Canary is being built in the open to become the go-to drift detection tool for A
     fail-on: degradation_drift
 ```
 
-### v0.3 — Native LangFuse + Human-Readable Reports ✅ (LangFuse shipped early)
+See [`examples/workflows/`](examples/workflows/) for ready-to-use templates.
 
-**Goal:** Teams using LangFuse (the de-facto standard for agent tracing) get drift detection with zero configuration. PMs and stakeholders can read the output.
+### v0.3 — Native LangFuse + Human-Readable Reports 🚧 (LangFuse adapter shipped early)
 
-| Deliverable | What it unlocks |
+**Goal:** Teams using LangFuse get drift detection with zero configuration. PMs can read the output.
+
+| Deliverable | Status |
 |---|---|
-| **LangFuse native adapter** ✅ | `canary check --source langfuse` — no JSONL export, reads traces directly |
-| **`canary report --format md`** | Markdown table output for pasting into issues, PRs, Slack, Notion |
-| **CI summary annotation** | GitHub Actions step summary with visual drift table |
+| **LangFuse native adapter** — `canary check --source langfuse` | ✅ Shipped |
+| **`canary report --format md`** — markdown output for issues, PRs, Slack | 🔜 Next |
+| **CI summary annotation** — GitHub Actions step summary with drift table | 🔜 Next |
 
 ```bash
 # Tracepath → LangFuse → Canary pipeline
 canary baseline --source langfuse --trace-name BUILD
 canary check --source langfuse --trace-name BUILD --hours-back 24
 ```
+
+### Bug fixes shipped (from real-world use)
+
+| Issue | Fix |
+|---|---|
+| [#1](https://github.com/nujovich/canary/issues/1) — baseline/check crash on decision paths | Serialize paths as `|||-`delimited strings + backward compat |
+| [#2](https://github.com/nujovich/canary/issues/2) — LLM Judge fails on reasoning models | `max_tokens` 200→1000 + fallback to `msg.reasoning` |
+| [#3](https://github.com/nujovich/canary/issues/3) — sample_rate produces 1 sample for small datasets | `min_samples=5` parameter |
 
 ### v0.4 — Self-Contained Dashboard
 
